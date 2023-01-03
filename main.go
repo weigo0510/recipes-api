@@ -15,9 +15,9 @@ import (
 var recipesHandler *handlers.RecipesHandler
 
 func init() {
-	/*recipes = make([]Recipe, 0)
-	file, _ := ioutil.ReadFile("recipes.json")
-	_ = json.Unmarshal([]byte(file), &recipes)*/
+	//recipes := make([]models.Recipe, 0)
+	//file, _ := ioutil.ReadFile("recipes.json")
+	//_ = json.Unmarshal([]byte(file), &recipes)
 	ctx := context.Background()
 	client, err := mongo.Connect(ctx,
 		options.Client().ApplyURI(os.Getenv("MONGO_URI")))
@@ -39,7 +39,7 @@ func init() {
 	//for _, r := range recipes {
 	//	lRecipes = append(lRecipes, r)
 	//}
-	//collection := client.Database(os.Getenv("MONGO_DATABASE")).Collection("recipes")
+	////collection := client.Database(os.Getenv("MONGO_DATABASE")).Collection("recipes")
 	//result, err := collection.InsertMany(ctx, lRecipes)
 	//if err != nil {
 	//	log.Fatal(err)
@@ -47,12 +47,25 @@ func init() {
 	//log.Println("Inserted recipes: ", len(result.InsertedIDs))
 }
 
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetHeader("X-API-KEY") != os.Getenv("X_API_KEY") {
+			c.AbortWithStatus(401)
+		}
+		c.Next()
+	}
+}
+
 func main() {
 	router := gin.Default()
-	router.POST("/recipes", recipesHandler.NewRecipeHandler)
 	router.GET("/recipes", recipesHandler.ListRecipesHandler)
-	router.PUT("/recipes/:id", recipesHandler.UpdateRecipeHandler)
-	router.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
 	//4router.GET("/recipes/search", SearchRecipesHandler)
+	authorized := router.Group("/")
+	authorized.Use(AuthMiddleware())
+	{
+		authorized.POST("/recipes", recipesHandler.NewRecipeHandler)
+		authorized.PUT("/recipes/:id", recipesHandler.UpdateRecipeHandler)
+		authorized.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
+	}
 	router.Run()
 }
